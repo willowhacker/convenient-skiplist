@@ -2,49 +2,30 @@
 use convenient_skiplist::SkipList;
 
 fn main() {
-    let mut sk = SkipList::from(0..3);
 
-    // print the skiplist
-    // warning: this can print a lot of nodes (~ 2 * sk.len())
-    println!("{:?}", sk);
-
-    // Test association
-    if sk.contains(&0) {
-        println!("It contains 0!");
-    }
-    if !sk.contains(&99) {
-        println!("It doesn't contain 99 :C");
-    }
-    // Insert and remove elements
-    if sk.insert(99) {
-        println!("... it now contains 99 🎉");
-    }
-    // Elements are unique
-    if !sk.insert(99) {
-        println!("... can't insert 99 twice :c");
+    let mut sk = SkipList::new();
+    
+    println!("insert 0.0: positin:{}",sk.insert(0.));
+    println!("insert 1.0: positin:{}",sk.insert(1.));
+    println!("insert 1.0: positin:{}",sk.insert(1.));
+    println!("insert 2.0: positin:{}",sk.insert(2.));
+    for v in [-1.0, 0.0, 1.0, 2.0, 3.0] {
+        println!("{:?}, index_of: {:?}，min_rank: {:?}，max_rank: {:?}", &v, sk.index_of(&v), sk.min_rank(&v), sk.max_rank(&v));
     }
 
-    if sk.remove(&99) {
-        println!("... I removed 99");
-    }
+    println!("{:?}",sk);
 
-    // Pop items
-    sk.insert(100);
-    sk.insert(200);
-    dbg!(sk.pop_max(2));
-    dbg!(sk.pop_min(2));
+    sk.remove(&1.);
 
-    // We can check how many elements are in the skiplist
+    println!("{:?}",sk);
 
-    dbg!(sk.len(), sk.is_empty());
+    sk.remove(&1.);
 
-    // Let's make a big skiplist
-    let sk = SkipList::from(0..1000);
+    println!("{:?}",sk);
 
-    // Lets iterate over all of them
-    let all_eles: Vec<_> = sk.iter_all().collect();
-    dbg!((all_eles.len(), sk.len()));
+    sk.remove(&1.);
 
-    // Lets iterate over a range
-    dbg!(sk.range(&700, &705).collect::<Vec<_>>());
+    println!("{:?}",sk);
+
 }
+

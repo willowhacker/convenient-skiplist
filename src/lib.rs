@@ -1,5 +1,5 @@
 use crate::iter::{
-    IterAll, IterRangeWith, LeftBiasIter, LeftBiasIterWidth, NodeRightIter, NodeWidth,
+    IterAll, IterRangeWith, LeftBiasIter, LeftBiasIterWidth, RightBiasIterWidth, NodeRightIter, NodeWidth,
     SkipListIndexRange, SkipListRange, VerticalIter,
 };
 use core::ops::RangeBounds;
@@ -351,15 +351,15 @@ impl<T: PartialOrd + Clone> SkipList<T> {
     /// assert!(sk.contains(&0));
     /// ```
     #[inline]
-    pub fn insert(&mut self, item: T) -> bool {
+    pub fn insert(&mut self, item: T) -> usize {
         #[cfg(debug_assertions)]
         {
             self.ensure_invariants()
         }
 
-        if self.contains(&item) {
-            return false;
-        }
+        // if self.contains(&item) {
+        //     return false;
+        // }
         let height = get_level();
         let additional_height_req: i32 = (height as i32 - self.height as i32) + 1;
         if additional_height_req > 0 {
@@ -449,7 +449,7 @@ impl<T: PartialOrd + Clone> SkipList<T> {
         {
             self.ensure_invariants()
         }
-        true
+        total_width.unwrap() as usize
     }
     /// Test if `item` is in the skiplist. Returns `true` if it's in the skiplist,
     /// `false` otherwise.
@@ -480,6 +480,16 @@ impl<T: PartialOrd + Clone> SkipList<T> {
         })
     }
 
+    #[inline]
+    pub fn min_rank(&self, item: &T) -> Option<usize> {
+        self.index_of(item)
+    }    
+
+    #[inline]
+    pub fn max_rank(&self, item: &T) -> Option<usize> {
+        self.right_index_of(item)
+    }
+    
     /// Remove `item` from the SkipList.
     ///
     /// Returns `true` if the item was in the collection to be removed,
@@ -611,6 +621,20 @@ impl<T: PartialOrd + Clone> SkipList<T> {
         })
     }
 
+    #[inline]
+    pub fn right_index_of(&self, item: &T) -> Option<usize> {
+        // INVARIANT: path_to is a RightBiasIterWidth, so there's always a
+        // node right of us.
+        self.path_to_right(item).last().and_then(|node| {
+            if unsafe { &(*node.curr_node).value } == item {
+                Some(node.curr_width-1)
+            } else {
+                None
+            }
+        })
+    }
+
+    
     /// Get the item at the index `index `in the `SkipList`.
     ///
     /// Runs in `O(logn)` time.
@@ -1054,6 +1078,11 @@ impl<T: PartialOrd + Clone> SkipList<T> {
     }
 
     #[inline]
+    fn path_to_right<'a>(&self, item: &'a T) -> RightBiasIterWidth<'a, T> {
+        RightBiasIterWidth::new(self.top_left.as_ptr(), item)
+    }
+
+    #[inline]
     fn insert_path(&mut self, item: &T) -> Vec<NodeWidth<T>> {
         self.path_to(item).collect()
     }
@@ -1121,7 +1150,7 @@ impl<T: PartialOrd + Clone> SkipList<T> {
         unsafe {
             loop {
                 while let Some(right) = curr_node.as_ref().right {
-                    assert!(curr_node.as_ref().value < right.as_ref().value);
+                    assert!(curr_node.as_ref().value <= right.as_ref().value);
                     curr_node = right;
                 }
                 if let Some(down) = left_row.as_ref().down {
@@ -1237,15 +1266,15 @@ mod tests {
         assert_eq!(sl.len(), 1);
         assert!(!sl.is_empty());
         sl.insert(0);
-        assert_eq!(sl.len(), 1);
+        assert_eq!(sl.len(), 2);
         sl.insert(1);
+        assert_eq!(sl.len(), 3);
+        sl.remove(&1);
         assert_eq!(sl.len(), 2);
         sl.remove(&1);
-        assert_eq!(sl.len(), 1);
-        sl.remove(&1);
-        assert_eq!(sl.len(), 1);
+        assert_eq!(sl.len(), 2);
         sl.remove(&0);
-        assert_eq!(sl.len(), 0);
+        assert_eq!(sl.len(), 1);
         sl.remove(&0);
         assert_eq!(sl.len(), 0);
     }

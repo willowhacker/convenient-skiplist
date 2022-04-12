@@ -398,25 +398,55 @@ impl<T> NodeWidth<T> {
     }
 }
 
-pub(crate) struct LeftBiasIterWidth<'a, T> {
+pub(crate) struct BiasIterWidth<'a, T> {
     curr_node: *mut Node<T>,
     total_width: usize,
     item: &'a T,
     finished: bool,
+    left_bias: bool,
 }
 
-impl<'a, T> LeftBiasIterWidth<'a, T> {
-    pub(crate) fn new(curr_node: *mut Node<T>, item: &'a T) -> Self {
+pub(crate) struct LeftBiasIterWidth<'a, T> {
+    base_iter: BiasIterWidth<'a, T>,
+}
+
+pub(crate) struct RightBiasIterWidth<'a, T> {
+    base_iter: BiasIterWidth<'a, T>,    
+}
+
+#[allow(dead_code)]
+impl<'a, T> BiasIterWidth<'a, T> {
+    pub(crate) fn new(curr_node: *mut Node<T>, item: &'a T, left_bias: bool) -> Self {
         Self {
             curr_node,
             item,
             finished: false,
             total_width: 0,
+            left_bias,
         }
     }
 }
 
-impl<'a, T: PartialOrd> Iterator for LeftBiasIterWidth<'a, T> {
+#[allow(dead_code)]
+impl<'a, T> LeftBiasIterWidth<'a, T> {
+    pub(crate) fn new(curr_node: *mut Node<T>, item: &'a T) -> Self {
+        Self {
+            base_iter: BiasIterWidth {curr_node, item, finished: false, total_width: 0, left_bias: true}
+        }
+    }
+}
+
+
+#[allow(dead_code)]
+impl<'a, T> RightBiasIterWidth<'a, T> {
+    pub(crate) fn new(curr_node: *mut Node<T>, item: &'a T) -> Self {
+        Self {
+            base_iter: BiasIterWidth {curr_node, item, finished: false, total_width: 0, left_bias: false}
+        }
+    }
+}
+
+impl<'a, T: PartialOrd> Iterator for BiasIterWidth<'a, T> {
     type Item = NodeWidth<T>;
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -429,7 +459,9 @@ impl<'a, T: PartialOrd> Iterator for LeftBiasIterWidth<'a, T> {
                     // We're somewhere in the middle of the skiplist
                     (Some(right), Some(down)) => {
                         // The node our right is smaller than `item`, so let's advance forward.
-                        if &right.as_ref().value < self.item {
+                        if  ( !self.left_bias && (&right.as_ref().value <= self.item) )|| 
+                            ( self.left_bias && (&right.as_ref().value < self.item) )
+                        {
                             self.total_width += (*self.curr_node).width;
                             self.curr_node = right.as_ptr();
                         } else {
@@ -443,7 +475,9 @@ impl<'a, T: PartialOrd> Iterator for LeftBiasIterWidth<'a, T> {
                     (Some(right), None) => {
                         // We're at the bottom row, and the item to our right >= `self.item`.
                         // This is exactly the same as a linked list -- we don't want to continue further.
-                        if &right.as_ref().value >= self.item {
+                        if  ( !self.left_bias && &right.as_ref().value > self.item) || 
+                            ( self.left_bias && &right.as_ref().value >= self.item) 
+                        {
                             self.finished = true;
                             return Some(NodeWidth::new(self.curr_node, self.total_width));
                         } else {
@@ -460,6 +494,23 @@ impl<'a, T: PartialOrd> Iterator for LeftBiasIterWidth<'a, T> {
         }
     }
 }
+
+impl<'a, T: PartialOrd> Iterator for LeftBiasIterWidth<'a, T> {
+    type Item = NodeWidth<T>;
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.base_iter.next()
+    }
+}
+
+impl<'a, T: PartialOrd> Iterator for RightBiasIterWidth<'a, T> {
+    type Item = NodeWidth<T>;
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.base_iter.next()
+    }
+}
+
 /// Left-biased iteration towards `item`.
 ///
 /// Guaranteed to return an iterator of items directly left of `item`,
